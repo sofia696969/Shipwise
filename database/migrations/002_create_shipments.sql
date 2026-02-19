@@ -1,7 +1,0 @@
-CREATE TABLE IF NOT EXISTS shipments (
-    id SERIAL PRIMARY KEY,
-    title VARCHAR(255) NOT NULL,
-    status VARCHAR(50) NOT NULL,
-    cost NUMERIC(10, 2),
-    created_at TIMESTAMP DEFAULT NOW()
-);

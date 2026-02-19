@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "outDir": "dist",
+    "strict": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "baseUrl": ".",
+    "paths": {
+      "@lib/*": ["lib/*"],
+      "@routes/*": ["routes/*"],
+      "@shared/*": ["../shared/*"]
+    }
+  },
+  "include": ["**/*.ts", "../shared/**/*.ts"]
+}
+
