@@ -1,68 +1,74 @@
-import { useAuth } from "@/contexts/AuthContext";
-import { useRouter } from "next/router";
-import { useEffect } from "react";
-import { Card } from "@/components/ui/card";
+'use client';
+
+import { useEffect, useState } from "react";
+import { getCarriers } from "@/backend";
+import StatusBadge from "@/components/StatusBadge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Truck } from "lucide-react";
-import Link from "next/link";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
+import { Plus } from "lucide-react";
 
-
-export default function Carriers() {
-  const { user } = useAuth();
-  const router = useRouter(); 
+const Carriers = () => {
+  const [carriers, setCarriers] = useState<any[]>([]);
 
   useEffect(() => {
-    if (!user) {
-      router.push("/auth");
-    }
-  }, [user, router]);
+    getCarriers().then(setCarriers).catch(console.error);
+  }, []);
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <img
-              src="https://cdn.builder.io/api/v1/image/assets%2Faf93f640cf124b7cb35ce96c88c6f89b%2F14e209e3048e45ef8421386f80313e8f?format=webp&width=800&height=1200"
-              alt="Shipwise"
-              className="h-8"
-            />
-            <h1 className="text-2xl font-bold text-slate-900">Shipwise Admin</h1>
-          </div>
-          <Link href="/dashboard" className="text-primary hover:underline">
-            Back to Dashboard
-          </Link>
+    <div className="space-y-6 p-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Carrier Management</h1>
+          <p className="text-sm text-muted-foreground">Manage carriers and view performance</p>
         </div>
-      </header>
+        <Dialog>
+          <DialogTrigger asChild><Button><Plus className="mr-2 h-4 w-4" /> Add Carrier</Button></DialogTrigger>
+          <DialogContent>
+            <DialogHeader><DialogTitle>Add New Carrier</DialogTitle></DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div><Label>Carrier Name</Label><Input placeholder="e.g. Maersk" /></div>
+              <div className="grid grid-cols-2 gap-4">
+                <div><Label>Reliability Score</Label><Input type="number" placeholder="0-100" /></div>
+                <div><Label>Avg. Cost ($)</Label><Input type="number" placeholder="0" /></div>
+              </div>
+              <Button className="mt-2">Add Carrier</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
 
-      <main className="flex-1 p-8">
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold text-slate-900">Carrier Management</h2>
-          <p className="text-slate-600 mt-1">
-            Manage carriers and reliability scores
-          </p>
-        </div>
-
-        <Card className="p-12 text-center">
-          <Truck className="h-16 w-16 mx-auto text-slate-300 mb-4" />
-          <h3 className="text-lg font-semibold text-slate-900 mb-2">
-            Carriers Module
-          </h3>
-          <p className="text-slate-600 mb-6">
-            This page is ready for carrier management features. Continue prompting to add:
-          </p>
-          <ul className="text-left inline-block text-slate-600 mb-6">
-            <li>• Register new carriers</li>
-            <li>• View reliability scores</li>
-            <li>• Track performance metrics</li>
-            <li>• Historical performance view</li>
-            <li>• ML-based reliability predictions</li>
-          </ul>
-          <Button asChild className="bg-primary">
-            <Link href="/dashboard">Return to Dashboard</Link>
-          </Button>
-        </Card>
-      </main>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {carriers.map((c) => (
+          <Card key={c.id}>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base">{c.name}</CardTitle>
+                <StatusBadge status={c.status as any} />
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div>
+                <div className="mb-1 flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">Reliability</span>
+                  <span className="font-mono font-medium text-foreground">{c.reliability_score}%</span>
+                </div>
+                <Progress value={c.reliability_score} className="h-2" />
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div><span className="text-muted-foreground">On-Time Rate</span><p className="font-mono font-medium text-foreground">{c.on_time_rate}%</p></div>
+                <div><span className="text-muted-foreground">Total Shipments</span><p className="font-mono font-medium text-foreground">{c.total_shipments}</p></div>
+                <div><span className="text-muted-foreground">Avg. Cost</span><p className="font-mono font-medium text-foreground">${c.avg_cost.toLocaleString()}</p></div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
     </div>
   );
-}
+};
+
+export default Carriers;

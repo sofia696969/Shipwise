@@ -1,67 +1,103 @@
-import { useAuth } from "@/contexts/AuthContext";
-import { useRouter } from "next/router";
-import { useEffect } from "react";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { AlertCircle } from "lucide-react";
-import Link from "next/link";
+'use client';
 
-export default function Incidents() {
-  const { user } = useAuth();
-  const router = useRouter();
+import { useEffect, useState } from "react";
+import { getIncidents } from "@/backend";
+import StatusBadge from "@/components/StatusBadge";
+import { Card, CardContent } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Plus } from "lucide-react";
+
+const severityStyles = {
+  low: "bg-primary/10 text-primary border-primary/30",
+  medium: "bg-chart-4/10 text-chart-4 border-chart-4/30",
+  high: "bg-destructive/10 text-destructive border-destructive/30",
+};
+
+const Incidents = () => {
+  const [incidents, setIncidents] = useState<any[]>([]);
 
   useEffect(() => {
-    if (!user) {
-      router.push("/auth");
-    }
-  }, [user, router]);
+    getIncidents().then(setIncidents).catch(console.error);
+  }, []);
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <img
-              src="https://cdn.builder.io/api/v1/image/assets%2Faf93f640cf124b7cb35ce96c88c6f89b%2F14e209e3048e45ef8421386f80313e8f?format=webp&width=800&height=1200"
-              alt="Shipwise"
-              className="h-8"
-            />
-            <h1 className="text-2xl font-bold text-slate-900">Shipwise Admin</h1>
-          </div>
-          <Link href="/dashboard" className="text-primary hover:underline">
-            Back to Dashboard
-          </Link>
+    <div className="space-y-6 p-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Incidents & Compliance</h1>
+          <p className="text-sm text-muted-foreground">Track incidents and compliance issues</p>
         </div>
-      </header>
+        <Dialog>
+          <DialogTrigger asChild><Button><Plus className="mr-2 h-4 w-4" /> Report Incident</Button></DialogTrigger>
+          <DialogContent>
+            <DialogHeader><DialogTitle>Report New Incident</DialogTitle></DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div><Label>Shipment ID</Label><Input placeholder="SHP-XXX" /></div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Type</Label>
+                  <Select><SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
+                    <SelectContent>
+                      {["customs", "damage", "delay", "compliance"].map((t) => <SelectItem key={t} value={t} className="capitalize">{t}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Severity</Label>
+                  <Select><SelectTrigger><SelectValue placeholder="Select severity" /></SelectTrigger>
+                    <SelectContent>
+                      {["low", "medium", "high"].map((s) => <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div><Label>Description</Label><Textarea placeholder="Describe the incident..." /></div>
+              <Button className="mt-2">Report Incident</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
 
-      <main className="flex-1 p-8">
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold text-slate-900">Incident Tracking</h2>
-          <p className="text-slate-600 mt-1">
-            Report and manage shipment incidents
-          </p>
-        </div>
-
-        <Card className="p-12 text-center">
-          <AlertCircle className="h-16 w-16 mx-auto text-slate-300 mb-4" />
-          <h3 className="text-lg font-semibold text-slate-900 mb-2">
-            Incidents Module
-          </h3>
-          <p className="text-slate-600 mb-6">
-            This page is ready for incident tracking features. Continue prompting to add:
-          </p>
-          <ul className="text-left inline-block text-slate-600 mb-6">
-            <li>• Report shipment incidents</li>
-            <li>• Mark customs issues</li>
-            <li>• Upload inspection results</li>
-            <li>• Track incident severity</li>
-            <li>• View incident history</li>
-          </ul>
-          <Button asChild className="bg-primary">
-            <Link href="/dashboard">Return to Dashboard</Link>
-          </Button>
-        </Card>
-      </main>
+      <Card>
+        <CardContent className="pt-6">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>ID</TableHead>
+                <TableHead>Shipment</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead>Severity</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Reported</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {incidents.map((i) => (
+                <TableRow key={i.id}>
+                  <TableCell className="font-mono text-xs">{i.id}</TableCell>
+                  <TableCell className="font-mono text-xs">{i.shipment_id}</TableCell>
+                  <TableCell><Badge variant="outline" className="capitalize text-xs">{i.type}</Badge></TableCell>
+                  <TableCell className="max-w-[200px] truncate text-sm">{i.description}</TableCell>
+                  <TableCell><Badge variant="outline" className={`capitalize text-xs ${severityStyles[i.severity as keyof typeof severityStyles]}`}>{i.severity}</Badge></TableCell>
+                  <TableCell><StatusBadge status={i.status as any} /></TableCell>
+                  <TableCell className="text-sm">{i.reported_at}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
     </div>
   );
-}
+};
+
+export default Incidents;
+

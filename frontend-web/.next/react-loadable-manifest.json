@@ -1,1 +1,14 @@
-{}
+{
+  "components\\DashboardCharts.tsx -> recharts": {
+    "id": "components\\DashboardCharts.tsx -> recharts",
+    "files": [
+      "static/chunks/node_modules_recharts_es6_index_js.js"
+    ]
+  },
+  "pages\\dashboard.tsx -> @/components/DashboardCharts": {
+    "id": "pages\\dashboard.tsx -> @/components/DashboardCharts",
+    "files": [
+      "static/chunks/components_DashboardCharts_tsx.js"
+    ]
+  }
+}

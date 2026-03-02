@@ -1,91 +1,126 @@
-import { useAuth } from "@/contexts/AuthContext";
-import { useRouter } from "next/router";
-import { useEffect } from "react";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Package } from "lucide-react";
-import Link from "next/link";
+'use client';
 
-export default function Shipments() {
-  const { user } = useAuth();
-  const router = useRouter();
+import { useEffect, useState } from "react";
+import { getShipments, getCarriers } from "@/backend";
+import StatusBadge from "@/components/StatusBadge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Plus, Search } from "lucide-react";
+
+const Shipments = () => {
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [shipments, setShipments] = useState<any[]>([]);
+  const [carriers, setCarriers] = useState<any[]>([]);
 
   useEffect(() => {
-    if (!user) {
-      router.push("/auth");
-    }
-  }, [user, router]);
+    getShipments().then(setShipments).catch(console.error);
+    getCarriers().then(setCarriers).catch(console.error);
+  }, []);
+
+  const filtered = shipments.filter((s) => {
+    const matchesSearch = s.id.toLowerCase().includes(search.toLowerCase()) || s.origin.toLowerCase().includes(search.toLowerCase()) || s.destination.toLowerCase().includes(search.toLowerCase());
+    const matchesStatus = statusFilter === "all" || s.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Header */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <img
-              src="https://cdn.builder.io/api/v1/image/assets%2Faf93f640cf124b7cb35ce96c88c6f89b%2F14e209e3048e45ef8421386f80313e8f?format=webp&width=800&height=1200"
-              alt="Shipwise"
-              className="h-8"
-            />
-            <h1 className="text-2xl font-bold text-slate-900">Shipwise Admin</h1>
-          </div>
-          <Link href="/dashboard" className="text-primary hover:underline">
-            Back to Dashboard
-          </Link>
+    <div className="space-y-6 p-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Shipments</h1>
+          <p className="text-sm text-muted-foreground">Manage and track all shipments</p>
         </div>
-      </header>
-
-      <div className="flex">
-        {/* Sidebar */}
-        <nav className="w-64 bg-white border-r border-slate-200 min-h-screen p-4">
-          <div className="space-y-2">
-            <Link
-              href="/dashboard"
-              className="flex items-center gap-3 px-4 py-2 rounded-lg text-slate-700 hover:bg-slate-50"
-            >
-              <Package className="h-5 w-5" />
-              Dashboard
-            </Link>
-            <Link
-              href="/shipments"
-              className="flex items-center gap-3 px-4 py-2 rounded-lg bg-blue-50 text-primary font-medium"
-            >
-              <Package className="h-5 w-5" />
-              Shipments
-            </Link>
-          </div>
-        </nav>
-
-        {/* Main Content */}
-        <main className="flex-1 p-8">
-          <div className="mb-8">
-            <h2 className="text-3xl font-bold text-slate-900">Shipments</h2>
-            <p className="text-slate-600 mt-1">
-              Manage and track all shipments
-            </p>
-          </div>
-
-          <Card className="p-12 text-center">
-            <Package className="h-16 w-16 mx-auto text-slate-300 mb-4" />
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">
-              Shipments Module
-            </h3>
-            <p className="text-slate-600 mb-6">
-              This page is ready for shipment management features. Continue prompting to add:
-            </p>
-            <ul className="text-left inline-block text-slate-600 mb-6">
-              <li>• Create and manage shipments</li>
-              <li>• Track shipment status</li>
-              <li>• Assign carriers</li>
-              <li>• Upload documents</li>
-              <li>• View shipment history</li>
-            </ul>
-            <Button asChild className="bg-primary">
-              <Link href="/dashboard">Return to Dashboard</Link>
-            </Button>
-          </Card>
-        </main>
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button><Plus className="mr-2 h-4 w-4" /> Create Shipment</Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-lg">
+            <DialogHeader><DialogTitle>Create New Shipment</DialogTitle></DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div><Label>Origin</Label><Input placeholder="City, Country" /></div>
+                <div><Label>Destination</Label><Input placeholder="City, Country" /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Carrier</Label>
+                  <Select><SelectTrigger><SelectValue placeholder="Select carrier" /></SelectTrigger>
+                    <SelectContent>{carriers.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div><Label>Estimated Cost ($)</Label><Input type="number" placeholder="0.00" /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div><Label>ETA</Label><Input type="date" /></div>
+                <div><Label>Goods Type</Label><Input placeholder="e.g. Electronics" /></div>
+              </div>
+              <Button className="mt-2">Create Shipment</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
+
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input placeholder="Search shipments..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+            </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="on-time">On Time</SelectItem>
+                <SelectItem value="delayed">Delayed</SelectItem>
+                <SelectItem value="at-risk">At Risk</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>ID</TableHead>
+                <TableHead>Origin</TableHead>
+                <TableHead>Destination</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>ETA</TableHead>
+                <TableHead>Predicted ETA</TableHead>
+                <TableHead>Carrier</TableHead>
+                <TableHead className="text-right">Est. Cost</TableHead>
+                <TableHead className="text-right">Delay %</TableHead>
+                <TableHead className="text-right">Risk %</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filtered.map((s) => (
+                <TableRow key={s.id}>
+                  <TableCell className="font-mono text-xs font-medium">{s.id}</TableCell>
+                  <TableCell className="text-sm">{s.origin}</TableCell>
+                  <TableCell className="text-sm">{s.destination}</TableCell>
+                  <TableCell><StatusBadge status={s.status as any} /></TableCell>
+                  <TableCell className="text-sm">{s.eta}</TableCell>
+                  <TableCell className="text-sm">{s.predicted_eta}</TableCell>
+                  <TableCell className="text-sm">{s.carrier}</TableCell>
+                  <TableCell className="text-right font-mono text-sm">${s.estimated_cost.toLocaleString()}</TableCell>
+                  <TableCell className="text-right font-mono text-sm">{s.delay_probability}%</TableCell>
+                  <TableCell className="text-right font-mono text-sm">{s.risk_score}%</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
     </div>
   );
-}
+};
+
+export default Shipments;
