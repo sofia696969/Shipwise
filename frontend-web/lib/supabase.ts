@@ -1,7 +1,15 @@
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+// support both Next.js and Vite style env vars in this mixed workspace
+const supabaseUrl =
+  process.env.NEXT_PUBLIC_SUPABASE_URL ||
+  process.env.VITE_SUPABASE_URL ||
+  "";
+const supabaseAnonKey =
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+  process.env.VITE_SUPABASE_ANON_KEY ||
+  "";
 
 if (!supabaseUrl || !supabaseAnonKey) {
+  // still throw so developer notices the mis‑configuration early
   throw new Error("Supabase environment variables are missing");
 }
 
@@ -14,56 +22,61 @@ export const supabase = createClient(
 
 
 export type Tables = {
+  organizations: {
+    id: string;
+    name: string;
+    slug: string;
+    created_at: string;
+    updated_at: string;
+  };
+  staff_users: {
+    user_id: string;
+    role: "staff" | "supervisor" | "hr" | "admin";
+    full_name: string;
+    department: string;
+    is_active: boolean;
+    created_at: string;
+  };
   shipments: {
     id: string;
-    created_at: string;
-    tracking_number: string;
-    status: "pending" | "in_transit" | "delivered" | "delayed" | "cancelled";
+    organization_id: string;
     carrier_id: string;
-    origin: string;
-    destination: string;
-    estimated_delivery: string;
-    actual_delivery: string | null;
-    created_by: string;
-    updated_at: string;
+    origin_county: string;
+    destination_country: string;
+    status: "pending" | "in_transit" | "delivered" | "delayed" | "cancelled";
+    planned_eta: string;
+    actual_eta: string | null;
+    estimated_cost: number;
+    actual_cost: number | null;
+    created_at: string;
   };
   goods: {
     id: string;
-    shipment_id: string;
-    type: string;
-    description: string;
-    weight: number;
-    volume: number;
-    fragile: boolean;
-    hazardous: boolean;
+    organisation_id: string;
+    name: string;
     category: string;
+    weight_kg: number;
+    volume_m3: number;
+    is_fragile: boolean;
+    is_hazardous: boolean;
+    industry_category: string;
     created_at: string;
   };
   carriers: {
     id: string;
     name: string;
-    contact_email: string;
-    phone: string;
+    country: string;
     reliability_score: number;
-    total_shipments: number;
-    successful_deliveries: number;
     created_at: string;
   };
   incidents: {
     id: string;
     shipment_id: string;
-    type: "damage" | "customs" | "delay" | "other";
+    incident_type: string;
     description: string;
     severity: "low" | "medium" | "high";
     reported_by: string;
-    created_at: string;
-  };
-  staff_users: {
-    id: string;
-    user_id: string;
-    role: "staff" | "supervisor" | "hr";
-    department: string;
-    created_at: string;
+    reported_at: string;
   };
 };
 

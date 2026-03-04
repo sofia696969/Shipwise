@@ -5,13 +5,25 @@ import type { User } from "@supabase/supabase-js";
 interface StaffUser {
   id: string;
   user_id: string;
-  role: "staff" | "supervisor" | "hr";
+  organization_id: string;
+  role: "staff" | "supervisor" | "hr" | "admin";
   department: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface Organization {
+  id: string;
+  name: string;
+  slug: string;
+  created_at: string;
+  updated_at: string;
 }
 
 interface AuthContextType {
   user: User | null;
   staffUser: StaffUser | null;
+  organization: Organization | null;
   loading: boolean;
   error: string | null;
   signUp: (email: string, password: string) => Promise<void>;
@@ -25,6 +37,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [staffUser, setStaffUser] = useState<StaffUser | null>(null);
+  const [organization, setOrganization] = useState<Organization | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -39,14 +52,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (session?.user) {
           // Fetch staff user data
-          const { data } = await supabase
-            .from("staff_users")
-            .select("*")
-            .eq("user_id", session.user.id)
-            .single();
+          try {
+            const { data: staffDataArray, error: staffError } = await supabase
+              .from("staff_users")
+              .select("*")
+              .eq("user_id", session.user.id);
 
-          if (data) {
-            setStaffUser(data as StaffUser);
+            if (Array.isArray(staffDataArray) && staffDataArray.length > 0 && !staffError) {
+              const staffData = staffDataArray[0]; // Get first staff user record
+              setStaffUser(staffData as StaffUser);
+
+              // Fetch organization data
+              try {
+                const { data: orgData, error: orgError } = await supabase
+                  .from("organizations")
+                  .select("*")
+                  .eq("id", staffData.organization_id)
+                  .single();
+
+                if (orgData && !orgError) {
+                  setOrganization(orgData as Organization);
+                }
+              } catch (orgErr) {
+                console.warn("Organization fetch warning:", orgErr);
+              }
+            } else if (staffError) {
+              // Query failed - table may not exist or RLS policy blocking
+              console.warn("Staff users fetch error:", staffError.code, staffError.message);
+            }
+          } catch (staffErr) {
+            // Network or parsing error - log but don't fail auth
+            console.warn("Staff user fetch exception:", staffErr);
           }
         }
       } catch (err) {
@@ -65,17 +101,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(session?.user ?? null);
 
       if (session?.user) {
-        const { data } = await supabase
-          .from("staff_users")
-          .select("*")
-          .eq("user_id", session.user.id)
-          .single();
+        try {
+          const { data: staffDataArray, error: staffError } = await supabase
+            .from("staff_users")
+            .select("*")
+            .eq("user_id", session.user.id);
 
-        if (data) {
-          setStaffUser(data as StaffUser);
+          if (Array.isArray(staffDataArray) && staffDataArray.length > 0 && !staffError) {
+            const staffData = staffDataArray[0]; // Get first staff user record
+            setStaffUser(staffData as StaffUser);
+
+            // Fetch organization data
+            try {
+              const { data: orgData, error: orgError } = await supabase
+                .from("organizations")
+                .select("*")
+                .eq("id", staffData.organization_id)
+                .single();
+
+              if (orgData && !orgError) {
+                setOrganization(orgData as Organization);
+              }
+            } catch (orgErr) {
+              console.warn("Organization fetch warning:", orgErr);
+            }
+          } else if (staffError) {
+            // Query failed - table may not exist or RLS policy blocking
+            console.warn("Staff users fetch error:", staffError.code, staffError.message);
+          }
+        } catch (staffErr) {
+          // Network or parsing error - log but don't fail auth
+          console.warn("Staff user fetch exception:", staffErr);
         }
       } else {
         setStaffUser(null);
+        setOrganization(null);
       }
     });
 
@@ -141,6 +201,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       value={{
         user,
         staffUser,
+        organization,
         loading,
         error,
         signUp,

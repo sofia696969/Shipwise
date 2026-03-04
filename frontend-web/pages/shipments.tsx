@@ -1,69 +1,54 @@
-'use client';
-
 import { useEffect, useState } from "react";
+import { useRouter } from "next/router";
+import { useAuth } from "@/contexts/AuthContext";
 import { getShipments, getCarriers } from "@/backend";
-import StatusBadge from "@/components/StatusBadge";
+import { StatusBadge } from "@/components/StatusBadge";
+import { ShipmentsDialog } from "@/components/ShipmentsDialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Plus, Search } from "lucide-react";
+import { Search } from "lucide-react";
+import { AppLayout } from "@/components/AppLayout";
 
 const Shipments = () => {
+  const { user, loading } = useAuth();
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [shipments, setShipments] = useState<any[]>([]);
   const [carriers, setCarriers] = useState<any[]>([]);
 
   useEffect(() => {
-    getShipments().then(setShipments).catch(console.error);
-    getCarriers().then(setCarriers).catch(console.error);
-  }, []);
+    if (!loading && !user) {
+      router.replace("/auth");
+    }
+  }, [user, loading, router]);
+
+  useEffect(() => {
+    if (user) {
+      getShipments().then(setShipments).catch(console.error);
+      getCarriers().then(setCarriers).catch(console.error);
+    }
+  }, [user]);
 
   const filtered = shipments.filter((s) => {
-    const matchesSearch = s.id.toLowerCase().includes(search.toLowerCase()) || s.origin.toLowerCase().includes(search.toLowerCase()) || s.destination.toLowerCase().includes(search.toLowerCase());
+    const matchesSearch = 
+      (s.id?.toLowerCase() ?? "").includes(search.toLowerCase()) || 
+      (s.origin?.toLowerCase() ?? "").includes(search.toLowerCase()) || 
+      (s.destination?.toLowerCase() ?? "").includes(search.toLowerCase());
     const matchesStatus = statusFilter === "all" || s.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
-  return (
+  const content = (
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Shipments</h1>
           <p className="text-sm text-muted-foreground">Manage and track all shipments</p>
         </div>
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button><Plus className="mr-2 h-4 w-4" /> Create Shipment</Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-lg">
-            <DialogHeader><DialogTitle>Create New Shipment</DialogTitle></DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div><Label>Origin</Label><Input placeholder="City, Country" /></div>
-                <div><Label>Destination</Label><Input placeholder="City, Country" /></div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Carrier</Label>
-                  <Select><SelectTrigger><SelectValue placeholder="Select carrier" /></SelectTrigger>
-                    <SelectContent>{carriers.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
-                <div><Label>Estimated Cost ($)</Label><Input type="number" placeholder="0.00" /></div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div><Label>ETA</Label><Input type="date" /></div>
-                <div><Label>Goods Type</Label><Input placeholder="e.g. Electronics" /></div>
-              </div>
-              <Button className="mt-2">Create Shipment</Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <ShipmentsDialog carriers={carriers} />
       </div>
 
       <Card>
@@ -89,38 +74,44 @@ const Shipments = () => {
             <TableHeader>
               <TableRow>
                 <TableHead>ID</TableHead>
-                <TableHead>Origin</TableHead>
-                <TableHead>Destination</TableHead>
+                <TableHead>Origin County</TableHead>
+                <TableHead>Destination Country</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>ETA</TableHead>
-                <TableHead>Predicted ETA</TableHead>
-                <TableHead>Carrier</TableHead>
-                <TableHead className="text-right">Est. Cost</TableHead>
-                <TableHead className="text-right">Delay %</TableHead>
-                <TableHead className="text-right">Risk %</TableHead>
+                <TableHead>Planned ETA</TableHead>
+                <TableHead>Actual ETA</TableHead>
+                <TableHead>Est. Cost</TableHead>
+                <TableHead className="text-right">Actual Cost</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map((s) => (
-                <TableRow key={s.id}>
-                  <TableCell className="font-mono text-xs font-medium">{s.id}</TableCell>
-                  <TableCell className="text-sm">{s.origin}</TableCell>
-                  <TableCell className="text-sm">{s.destination}</TableCell>
-                  <TableCell><StatusBadge status={s.status as any} /></TableCell>
-                  <TableCell className="text-sm">{s.eta}</TableCell>
-                  <TableCell className="text-sm">{s.predicted_eta}</TableCell>
-                  <TableCell className="text-sm">{s.carrier}</TableCell>
-                  <TableCell className="text-right font-mono text-sm">${s.estimated_cost.toLocaleString()}</TableCell>
-                  <TableCell className="text-right font-mono text-sm">{s.delay_probability}%</TableCell>
-                  <TableCell className="text-right font-mono text-sm">{s.risk_score}%</TableCell>
+              {filtered.length > 0 ? (
+                filtered.map((s) => (
+                  <TableRow key={s.id}>
+                    <TableCell className="font-mono text-xs font-medium">{s.id}</TableCell>
+                    <TableCell className="text-sm">{s.origin_county || "-"}</TableCell>
+                    <TableCell className="text-sm">{s.destination_country || "-"}</TableCell>
+                    <TableCell><StatusBadge status={(s.status || "pending") as any} /></TableCell>
+                    <TableCell className="text-sm">{s.planned_eta ? new Date(s.planned_eta).toLocaleDateString() : "-"}</TableCell>
+                    <TableCell className="text-sm">{s.actual_eta ? new Date(s.actual_eta).toLocaleDateString() : "-"}</TableCell>
+                    <TableCell className="text-right font-mono text-sm">${(s.estimated_cost || 0).toLocaleString()}</TableCell>
+                    <TableCell className="text-right font-mono text-sm">${(s.actual_cost || 0).toLocaleString()}</TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center py-4 text-muted-foreground">
+                    {shipments.length === 0 ? "No shipments found" : "No matches for your search"}
+                  </TableCell>
                 </TableRow>
-              ))}
+              )}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
     </div>
   );
+
+  return <AppLayout>{content}</AppLayout>;
 };
 
 export default Shipments;

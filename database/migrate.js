@@ -50,7 +50,7 @@ async function runMigrations() {
     }
   }
 
-  console.log("🎉 All migrations completed successfully!");
+  console.log(" All migrations completed successfully!");
   console.log(
     "You can now use the Shipwise application with your Supabase database."
   );

@@ -1,40 +1,52 @@
-// Simple wrapper around Supabase queries used by the frontend.
-// The real backend code lives in ../backend but the frontend uses the
-// Supabase client directly for now.  Exported functions return `any[]`
-// so that the existing pages (which rely on a bunch of fields that
-// aren't present in the supabase schema yet) type‑check without
-// introducing a bunch of intermediate domain types.
+import { supabase } from '@/lib/supabase';
 
-import { supabase } from "@/lib/supabase";
+export async function fetchJson(path: string) {
+  try {
+    // Get the current session to get the access token
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
 
-async function fetchTable<T>(table: string): Promise<T[]> {
-  const { data, error } = await supabase.from(table).select("*");
-  if (error) {
-    console.error(`error fetching ${table}:`, error);
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+    };
+
+    // Add authorization header if we have a session
+    if (session?.access_token) {
+      headers['Authorization'] = `Bearer ${session.access_token}`;
+    }
+
+    const res = await fetch(path, {
+      cache: 'no-store',
+      headers,
+    });
+
+    if (!res.ok) {
+      throw new Error(`${path} fetch failed: ${res.status} ${res.statusText}`);
+    }
+
+    return res.json();
+  } catch (error) {
+    console.error('Fetch error:', error);
     throw error;
   }
-  return (data || []) as T[];
 }
 
-export async function getCarriers(): Promise<any[]> {
-  return fetchTable<any>("carriers");
-}
+// Shipment-related endpoints
+export const getShipments = () => fetchJson('/api/shipments');
+export const getCarriers = () => fetchJson('/api/carriers');
+export const getIncidents = () => fetchJson('/api/incidents');
 
-export async function getShipments(): Promise<any[]> {
-  return fetchTable<any>("shipments");
-}
+// Goods & compliance
+export const getGoods = () => fetchJson('/api/goods');
+export const getComplianceChecks = () => fetchJson('/api/compliance');
 
-export async function getGoods(): Promise<any[]> {
-  return fetchTable<any>("goods");
-}
+// Users
+export const getUsers = () => fetchJson('/api/users');
 
-export async function getIncidents(): Promise<any[]> {
-  return fetchTable<any>("incidents");
-}
+// Documents & ML
+export const getDocuments = () => fetchJson('/api/documents');
+export const getMLPredictions = () => fetchJson('/api/ml-predictions');
 
-// There isn't a `users` table in supabase; the frontend pages expect a
-// list of user-like objects.  For the sake of compilation we just pull
-// the staff_users table and cast it to `any`.
-export async function getUsers(): Promise<any[]> {
-  return fetchTable<any>("staff_users");
-}
+// Audit & logs
+export const getAuditLogs = () => fetchJson('/api/audit-logs');

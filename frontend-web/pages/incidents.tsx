@@ -1,8 +1,9 @@
-'use client';
-
 import { useEffect, useState } from "react";
+import { useRouter } from "next/router";
+import { useAuth } from "@/contexts/AuthContext";
 import { getIncidents } from "@/backend";
-import StatusBadge from "@/components/StatusBadge";
+import { AppLayout } from "@/components/AppLayout";
+import { StatusBadge } from "@/components/StatusBadge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -21,20 +22,33 @@ const severityStyles = {
 };
 
 const Incidents = () => {
+  const { user, loading } = useAuth();
+  const router = useRouter();
   const [incidents, setIncidents] = useState<any[]>([]);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedType, setSelectedType] = useState("");
+  const [selectedSeverity, setSelectedSeverity] = useState("");
 
   useEffect(() => {
-    getIncidents().then(setIncidents).catch(console.error);
-  }, []);
+    if (!loading && !user) {
+      router.replace("/auth");
+    }
+  }, [user, loading, router]);
 
-  return (
+  useEffect(() => {
+    if (user) {
+      getIncidents().then(setIncidents).catch(console.error);
+    }
+  }, [user]);
+
+  const content = (
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Incidents & Compliance</h1>
           <p className="text-sm text-muted-foreground">Track incidents and compliance issues</p>
         </div>
-        <Dialog>
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild><Button><Plus className="mr-2 h-4 w-4" /> Report Incident</Button></DialogTrigger>
           <DialogContent>
             <DialogHeader><DialogTitle>Report New Incident</DialogTitle></DialogHeader>
@@ -43,7 +57,8 @@ const Incidents = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>Type</Label>
-                  <Select><SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
+                  <Select value={selectedType} onValueChange={setSelectedType}>
+                    <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
                     <SelectContent>
                       {["customs", "damage", "delay", "compliance"].map((t) => <SelectItem key={t} value={t} className="capitalize">{t}</SelectItem>)}
                     </SelectContent>
@@ -51,7 +66,8 @@ const Incidents = () => {
                 </div>
                 <div>
                   <Label>Severity</Label>
-                  <Select><SelectTrigger><SelectValue placeholder="Select severity" /></SelectTrigger>
+                  <Select value={selectedSeverity} onValueChange={setSelectedSeverity}>
+                    <SelectTrigger><SelectValue placeholder="Select severity" /></SelectTrigger>
                     <SelectContent>
                       {["low", "medium", "high"].map((s) => <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>)}
                     </SelectContent>
@@ -75,8 +91,8 @@ const Incidents = () => {
                 <TableHead>Type</TableHead>
                 <TableHead>Description</TableHead>
                 <TableHead>Severity</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Reported</TableHead>
+                <TableHead>Reported By</TableHead>
+                <TableHead>Reported At</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -84,10 +100,10 @@ const Incidents = () => {
                 <TableRow key={i.id}>
                   <TableCell className="font-mono text-xs">{i.id}</TableCell>
                   <TableCell className="font-mono text-xs">{i.shipment_id}</TableCell>
-                  <TableCell><Badge variant="outline" className="capitalize text-xs">{i.type}</Badge></TableCell>
+                  <TableCell><Badge variant="outline" className="capitalize text-xs">{i.incident_type}</Badge></TableCell>
                   <TableCell className="max-w-[200px] truncate text-sm">{i.description}</TableCell>
                   <TableCell><Badge variant="outline" className={`capitalize text-xs ${severityStyles[i.severity as keyof typeof severityStyles]}`}>{i.severity}</Badge></TableCell>
-                  <TableCell><StatusBadge status={i.status as any} /></TableCell>
+                  <TableCell className="text-sm">{i.reported_by}</TableCell>
                   <TableCell className="text-sm">{i.reported_at}</TableCell>
                 </TableRow>
               ))}
@@ -97,6 +113,8 @@ const Incidents = () => {
       </Card>
     </div>
   );
+
+  return <AppLayout>{content}</AppLayout>;
 };
 
 export default Incidents;

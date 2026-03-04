@@ -1,32 +1,45 @@
-import { Card, CardContent } from "@/components/ui/card";
-import { LucideIcon } from "lucide-react";
+import React from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
+interface Trend {
+  value: string;
+  positive?: boolean;
+}
 
 interface StatCardProps {
   title: string;
   value: string | number;
+  icon?: React.ComponentType<any>;
   subtitle?: string;
-  icon: LucideIcon;
-  trend?: { value: string; positive: boolean };
+  trend?: Trend;
 }
 
-const StatCard = ({ title, value, subtitle, icon: Icon, trend }: StatCardProps) => (
+const StatCard: React.FC<StatCardProps> = ({
+  title,
+  value,
+  icon: Icon,
+  subtitle,
+  trend,
+}) => (
   <Card>
-    <CardContent className="p-6">
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-sm font-medium text-muted-foreground">{title}</p>
-          <p className="mt-1 text-2xl font-bold text-foreground">{value}</p>
-          {subtitle && <p className="mt-1 text-xs text-muted-foreground">{subtitle}</p>}
-          {trend && (
-            <p className={`mt-1 text-xs font-medium ${trend.positive ? "text-primary" : "text-destructive"}`}>
-              {trend.value}
-            </p>
-          )}
+    <CardHeader>
+      <CardTitle className="flex items-center gap-2 text-sm">
+        {Icon && <Icon className="h-4 w-4 text-primary" />}
+        {title}
+      </CardTitle>
+    </CardHeader>
+    <CardContent className="space-y-1">
+      <div className="text-2xl font-bold">{value}</div>
+      {subtitle && <div className="text-xs text-muted-foreground">{subtitle}</div>}
+      {trend && (
+        <div
+          className={`text-xs font-medium ${
+            trend.positive ? "text-green-500" : "text-red-500"
+          }`}
+        >
+          {trend.value}
         </div>
-        <div className="rounded-lg bg-primary/10 p-2.5">
-          <Icon className="h-5 w-5 text-primary" />
-        </div>
-      </div>
+      )}
     </CardContent>
   </Card>
 );

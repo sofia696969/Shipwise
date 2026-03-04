@@ -1,46 +1,96 @@
-'use client';
-
 import { useEffect, useState } from "react";
+import { useRouter } from "next/router";
+import { useAuth } from "@/contexts/AuthContext";
 import dynamic from "next/dynamic";
-import { getShipments, getCarriers } from "@/backend";
+import { getShipments, getCarriers, getIncidents } from "@/backend";
 import StatCard from "@/components/StatCard";
-import StatusBadge from "@/components/StatusBadge";
+import { StatusBadge } from "@/components/StatusBadge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { alerts } from "@/data/mockData";
 import { Ship, AlertTriangle, ShieldAlert, DollarSign, Bell } from "lucide-react";
+import { AppLayout } from "@/components/AppLayout";
 
 const DashboardCharts = dynamic(() => import("@/components/DashboardCharts"), { ssr: false });
 
-const alertIconMap = { warning: "⚠️", error: "🚨", info: "ℹ️" };
-const pieColors = ["hsl(200, 98%, 39%)", "hsl(0, 72%, 50%)", "hsl(215, 16%, 46%)"];
+const alertIconMap: Record<string, string> = {
+  low: "ℹ️",
+  medium: "⚠️",
+  high: "🚨",
+  info: "ℹ️",
+  warning: "⚠️",
+  error: "🚨",
+};
 
 const Dashboard = () => {
+  const { user, loading, signOut } = useAuth();
+  const router = useRouter();
   const [shipments, setShipments] = useState<any[]>([]);
   const [carriers, setCarriers] = useState<any[]>([]);
+  const [incidents, setIncidents] = useState<any[]>([]);
 
   useEffect(() => {
-    getShipments().then(setShipments).catch(console.error);
-    getCarriers().then(setCarriers).catch(console.error);
-  }, []);
+    if (!loading && !user) router.replace("/auth");
+  }, [user, loading, router]);
+
+  useEffect(() => {
+    if (user) {
+      console.log('Fetching data for user:', user.id);
+      getShipments()
+        .then((data) => {
+          console.log('Shipments loaded:', data);
+          setShipments(data);
+        })
+        .catch((err) => {
+          console.error('Shipments fetch error:', err);
+          setShipments([]);
+        });
+      getCarriers()
+        .then((data) => {
+          console.log('Carriers loaded:', data);
+          setCarriers(data);
+        })
+        .catch((err) => {
+          console.error('Carriers fetch error:', err);
+          setCarriers([]);
+        });
+      getIncidents()
+        .then((data) => {
+          console.log('Incidents loaded:', data);
+          setIncidents(data);
+        })
+        .catch((err) => {
+          console.error('Incidents fetch error:', err);
+          setIncidents([]);
+        });
+    }
+  }, [user]);
 
   const activeCount = shipments.length;
   const delayedCount = shipments.filter((s) => s.status === "delayed").length;
   const atRiskCount = shipments.filter((s) => s.status === "at-risk").length;
-  const totalCost = shipments.reduce((sum, s) => sum + s.estimated_cost, 0);
+  const totalCost = shipments.reduce((sum, s) => sum + (s.estimated_cost || 0), 0);
 
   const carrierData = carriers.slice(0, 5).map((c) => ({ name: c.name, score: c.reliability_score }));
   const statusData = [
-    { name: "On Time", value: shipments.filter((s) => s.status === "on-time").length },
+    { name: "Pending", value: shipments.filter((s) => s.status === "pending").length },
+    { name: "In Transit", value: shipments.filter((s) => s.status === "in_transit").length },
+    { name: "Delivered", value: shipments.filter((s) => s.status === "delivered").length },
     { name: "Delayed", value: delayedCount },
-    { name: "At Risk", value: atRiskCount },
   ];
 
-  return (
+  const dashboardContent = (
     <div className="space-y-6 p-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
-        <p className="text-sm text-muted-foreground">Overview of your shipping operations</p>
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
+          <p className="text-sm text-muted-foreground">Overview of your shipping operations</p>
+        </div>
+        <button
+          onClick={() => signOut().catch(console.error)}
+          className="text-sm text-primary hover:underline"
+        >
+          Sign Out
+        </button>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -62,15 +112,21 @@ const Dashboard = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {alerts.map((a) => (
-              <div key={a.id} className="flex items-start gap-3 rounded-md border border-border bg-accent/50 p-3">
-                <span className="text-sm">{alertIconMap[a.type]}</span>
-                <div className="flex-1">
-                  <p className="text-sm text-foreground">{a.message}</p>
-                  <p className="text-xs text-muted-foreground">{a.time}</p>
+            {incidents.length > 0 ? (
+              incidents.map((a) => (
+                <div key={a.id} className="flex items-start gap-3 rounded-md border border-border bg-accent/50 p-3">
+                  <span className="text-sm">{alertIconMap[a.severity ?? a.type ?? "info"]}</span>
+                  <div className="flex-1">
+                    <p className="text-sm text-foreground">{a.description ?? a.message ?? a.title}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {a.created_at ? new Date(a.created_at).toLocaleString() : (a.time ?? "")}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+            ) : (
+              <p className="text-sm text-muted-foreground">No alerts at the moment</p>
+            )}
           </CardContent>
         </Card>
 
@@ -83,18 +139,18 @@ const Dashboard = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead>ID</TableHead>
-                  <TableHead>Route</TableHead>
+                  <TableHead>Origin</TableHead>
+                  <TableHead>Destination</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Delay %</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {shipments.slice(0, 5).map((s) => (
                   <TableRow key={s.id}>
                     <TableCell className="font-mono text-xs">{s.id}</TableCell>
-                    <TableCell className="text-xs">{s.origin.split(",")[0]} → {s.destination.split(",")[0]}</TableCell>
+                    <TableCell className="text-xs">{(s.origin_county ?? "")}</TableCell>
+                    <TableCell className="text-xs">{(s.destination_country ?? "")}</TableCell>
                     <TableCell><StatusBadge status={s.status as any} /></TableCell>
-                    <TableCell className="text-right font-mono text-xs">{s.delay_probability}%</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -104,6 +160,8 @@ const Dashboard = () => {
       </div>
     </div>
   );
+
+  return <AppLayout>{dashboardContent}</AppLayout>;
 };
 
 export default Dashboard;
