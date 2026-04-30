@@ -2,10 +2,5 @@
   "/_app": "pages/_app.js",
   "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
-  "/": "pages/index.js",
-  "/api/shipments": "pages/api/shipments.js",
-  "/api/incidents": "pages/api/incidents.js",
-  "/dashboard": "pages/dashboard.js",
-  "/auth": "pages/auth.js",
-  "/api/carriers": "pages/api/carriers.js"
+  "/request-access": "pages/request-access.js"
 }

@@ -1,211 +1,186 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useRef, useState } from "react";
+import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
-import type { User } from "@supabase/supabase-js";
-
-interface StaffUser {
-  id: string;
-  user_id: string;
-  organization_id: string;
-  role: "staff" | "supervisor" | "hr" | "admin";
-  department: string;
-  created_at: string;
-  updated_at: string;
-}
-
-interface Organization {
-  id: string;
-  name: string;
-  slug: string;
-  created_at: string;
-  updated_at: string;
-}
+import type { OrganizationRecord, UserRecord } from "@/lib/supabase";
 
 interface AuthContextType {
   user: User | null;
-  staffUser: StaffUser | null;
-  organization: Organization | null;
+  appUser: UserRecord | null;
+  organization: OrganizationRecord | null;
   loading: boolean;
+  roleResolved: boolean;
   error: string | null;
   signUp: (email: string, password: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
+  signInWithGoogle: (nextPath?: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
-
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+async function loadProfile(session: Session | null) {
+  if (!session?.user) {
+    return { appUser: null, organization: null };
+  }
+
+  const { data: appUser, error: userError } = await supabase
+    .from("users")
+    .select("*")
+    .eq("user_id", session.user.id)
+    .maybeSingle();
+
+  if (userError) throw userError;
+
+  if (!appUser?.organization_id) {
+    return { appUser: appUser as UserRecord | null, organization: null };
+  }
+
+  const { data: organization, error: orgError } = await supabase
+    .from("organizations")
+    .select("*")
+    .eq("organization_id", appUser.organization_id)
+    .maybeSingle();
+
+  if (orgError) throw orgError;
+
+  return {
+    appUser: appUser as UserRecord,
+    organization: organization as OrganizationRecord | null,
+  };
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [staffUser, setStaffUser] = useState<StaffUser | null>(null);
-  const [organization, setOrganization] = useState<Organization | null>(null);
+  const [appUser, setAppUser] = useState<UserRecord | null>(null);
+  const [organization, setOrganization] = useState<OrganizationRecord | null>(null);
   const [loading, setLoading] = useState(true);
+  const [roleResolved, setRoleResolved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Check auth status on mount
-  useEffect(() => {
-    const initAuth = async () => {
-      try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-        setUser(session?.user ?? null);
+  // 🧠 prevents race conditions
+  const requestId = useRef(0);
 
-        if (session?.user) {
-          // Fetch staff user data
-          try {
-            const { data: staffDataArray, error: staffError } = await supabase
-              .from("staff_users")
-              .select("*")
-              .eq("user_id", session.user.id);
+  const resolveProfile = async (session: Session | null) => {
+    const currentId = ++requestId.current;
 
-            if (Array.isArray(staffDataArray) && staffDataArray.length > 0 && !staffError) {
-              const staffData = staffDataArray[0]; // Get first staff user record
-              setStaffUser(staffData as StaffUser);
+    setLoading(true);
+    setRoleResolved(false);
 
-              // Fetch organization data
-              try {
-                const { data: orgData, error: orgError } = await supabase
-                  .from("organizations")
-                  .select("*")
-                  .eq("id", staffData.organization_id)
-                  .single();
-
-                if (orgData && !orgError) {
-                  setOrganization(orgData as Organization);
-                }
-              } catch (orgErr) {
-                console.warn("Organization fetch warning:", orgErr);
-              }
-            } else if (staffError) {
-              // Query failed - table may not exist or RLS policy blocking
-              console.warn("Staff users fetch error:", staffError.code, staffError.message);
-            }
-          } catch (staffErr) {
-            // Network or parsing error - log but don't fail auth
-            console.warn("Staff user fetch exception:", staffErr);
-          }
-        }
-      } catch (err) {
-        console.error("Auth init error:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    initAuth();
-
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
+    try {
       setUser(session?.user ?? null);
 
-      if (session?.user) {
-        try {
-          const { data: staffDataArray, error: staffError } = await supabase
-            .from("staff_users")
-            .select("*")
-            .eq("user_id", session.user.id);
+      const profile = await loadProfile(session);
 
-          if (Array.isArray(staffDataArray) && staffDataArray.length > 0 && !staffError) {
-            const staffData = staffDataArray[0]; // Get first staff user record
-            setStaffUser(staffData as StaffUser);
+      // ignore stale responses
+      if (currentId !== requestId.current) return;
 
-            // Fetch organization data
-            try {
-              const { data: orgData, error: orgError } = await supabase
-                .from("organizations")
-                .select("*")
-                .eq("id", staffData.organization_id)
-                .single();
-
-              if (orgData && !orgError) {
-                setOrganization(orgData as Organization);
-              }
-            } catch (orgErr) {
-              console.warn("Organization fetch warning:", orgErr);
-            }
-          } else if (staffError) {
-            // Query failed - table may not exist or RLS policy blocking
-            console.warn("Staff users fetch error:", staffError.code, staffError.message);
-          }
-        } catch (staffErr) {
-          // Network or parsing error - log but don't fail auth
-          console.warn("Staff user fetch exception:", staffErr);
-        }
-      } else {
-        setStaffUser(null);
-        setOrganization(null);
-      }
-    });
-
-    return () => subscription?.unsubscribe();
-  }, []);
-
-  const signUp = async (email: string, password: string) => {
-    try {
-      setError(null);
-      const { error: err } = await supabase.auth.signUp({
-        email,
-        password,
-      });
-      if (err) throw err;
+      setAppUser(profile.appUser);
+      setOrganization(profile.organization);
+      setRoleResolved(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Sign up failed");
-      throw err;
+      if (currentId !== requestId.current) return;
+
+      console.error("Auth profile error:", err);
+      setError(err instanceof Error ? err.message : "Auth error");
+
+      setAppUser(null);
+      setOrganization(null);
+      setRoleResolved(true);
+    } finally {
+      if (currentId === requestId.current) {
+        setLoading(false);
+      }
     }
   };
 
- const signIn = async (email: string, password: string) => {
-  try {
+  useEffect(() => {
+    let mounted = true;
+
+    const init = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!mounted) return;
+      await resolveProfile(session);
+    };
+
+    init();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!mounted) return;
+      resolveProfile(session);
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const signUp = async (email: string, password: string) => {
     setError(null);
+    const { error } = await supabase.auth.signUp({ email, password });
+    if (error) throw error;
+  };
 
-    console.log("Signing in with:", { email, password }); // Debug log
-
-    const { data, error } = await supabase.auth.signInWithPassword({
+  const signIn = async (email: string, password: string) => {
+    setError(null);
+    const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
-
-    console.log("Supabase response:", { data, error }); // Debug log
-
-    // Throw if Supabase returned an error
     if (error) throw error;
+  };
 
-    // Throw if login failed (no session returned)
-    if (!data.session) {
-      throw new Error("Invalid email or password");
+  const signInWithGoogle = async (nextPath?: string) => {
+    setError(null);
+
+    const safeNext =
+      typeof nextPath === "string" && nextPath.startsWith("/")
+        ? nextPath
+        : undefined;
+
+    const redirectTo = safeNext
+      ? `${window.location.origin}/auth/callback?next=${encodeURIComponent(
+          safeNext
+        )}`
+      : `${window.location.origin}/auth/callback`;
+
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo,
+        scopes: "openid email profile",
+      },
+    });
+
+    if (error) {
+      setError(error.message);
+      throw error;
     }
-
-    setUser(data.session.user);
-  } catch (err) {
-    setError(err instanceof Error ? err.message : "Sign in failed");
-    throw err;
-  }
-};
-
+  };
 
   const signOut = async () => {
-    try {
-      setError(null);
-      const { error: err } = await supabase.auth.signOut();
-      if (err) throw err;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Sign out failed");
-      throw err;
-    }
+    setError(null);
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
   };
 
   return (
     <AuthContext.Provider
       value={{
         user,
-        staffUser,
+        appUser,
         organization,
         loading,
+        roleResolved,
         error,
         signUp,
         signIn,
+        signInWithGoogle,
         signOut,
       }}
     >
@@ -214,11 +189,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-
 export function useAuth() {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth must be used within AuthProvider");
-  }
-  return context;
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
+  return ctx;
 }

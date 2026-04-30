@@ -1,100 +1,129 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
+import { Search } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { AppLayout } from "@/components/AppLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { getGoods } from "@/backend";
-import { AppLayout } from "@/components/AppLayout";
-import { GoodsDialog } from "@/components/GoodsDialog";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Search } from "lucide-react";
+import { usePagePermission } from "@/hooks/usePagePermission";
+import { PERMISSIONS } from "@/lib/rbac";
 
 const Goods = () => {
-  const { user, loading } = useAuth();
+  const { user, appUser, loading, roleResolved } = useAuth();
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [goods, setGoods] = useState<any[]>([]);
 
-  useEffect(() => {
-    if (!loading && !user) {
-      router.replace("/auth");
-    }
-  }, [user, loading, router]);
-
-  useEffect(() => {
-    if (user) {
-      getGoods().then(setGoods).catch(console.error);
-    }
-  }, [user]);
-
-  const filtered = goods.filter((g) => {
-    const nameMatch = (g.name?.toLowerCase() ?? "").includes(search.toLowerCase());
-    const typeMatch = (g.type?.toLowerCase() ?? "").includes(search.toLowerCase());
-    return nameMatch || typeMatch;
+  const { allowed } = usePagePermission({
+    loading,
+    roleResolved,
+    isAuthenticated: Boolean(user),
+    user: appUser,
+    requiredPermission: PERMISSIONS.OPERATIONS_PORTAL_ACCESS,
   });
 
-  const content = (
-    <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Goods Management</h1>
-          <p className="text-sm text-muted-foreground">Manage goods and link to shipments</p>
-        </div>
-        <GoodsDialog />
-      </div>
+  useEffect(() => {
+    if (!user || !allowed) {
+      return;
+    }
 
-      <Card>
-        <CardHeader>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Search goods..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
-          </div>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>ID</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Weight (kg)</TableHead>
-                <TableHead>Volume (m³)</TableHead>
-                <TableHead>Flags</TableHead>
-                <TableHead>Industry</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.length === 0 ? (
+    getGoods().then(setGoods).catch(console.error);
+  }, [allowed, user]);
+
+  const filtered = goods.filter((good) => {
+    const needle = search.toLowerCase();
+    return (
+      (good.name?.toLowerCase() ?? "").includes(needle) ||
+      (good.category?.toLowerCase() ?? "").includes(needle) ||
+      (good.good_id?.toLowerCase() ?? "").includes(needle)
+    );
+  });
+
+  return (
+    <AppLayout>
+      <div className="space-y-6 p-5 lg:p-8">
+        <section className="rounded-[28px] border border-white/70 bg-white/75 p-6 shadow-lg shadow-slate-200/40 backdrop-blur-sm">
+          <h1 className="text-3xl font-black text-slate-950">Goods</h1>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+            Keep product definitions organized by category, size, and handling risk
+            so staff can connect them to shipments accurately.
+          </p>
+        </section>
+
+        <Card className="border-white/70 bg-white/85 shadow-lg shadow-slate-200/40 backdrop-blur-sm">
+          <CardHeader>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Input
+                placeholder="Search goods by name, category, or ID"
+                className="h-11 rounded-xl border-slate-200 pl-9"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+              />
+            </div>
+          </CardHeader>
+
+          <CardContent>
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                    {goods.length === 0 ? "No goods found" : "No matching goods"}
-                  </TableCell>
+                  <TableHead>Good ID</TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Weight</TableHead>
+                  <TableHead>Volume</TableHead>
+                  <TableHead>Handling</TableHead>
+                  <TableHead>Created</TableHead>
                 </TableRow>
-              ) : (
-                filtered.map((g) => (
-                  <TableRow key={g.id}>
-                    <TableCell className="font-mono text-xs">{g.id ?? "—"}</TableCell>
-                    <TableCell className="font-medium">{g.name ?? "—"}</TableCell>
-                    <TableCell>{g.category ?? "—"}</TableCell>
-                    <TableCell className="font-mono">{g.weight_kg ? g.weight_kg.toLocaleString() : "—"}</TableCell>
-                    <TableCell className="font-mono">{g.volume_m3 ?? "—"}</TableCell>
-                    <TableCell className="space-x-1">
-                      {g.is_fragile && <Badge variant="outline" className="bg-chart-4/10 text-chart-4 border-chart-4/30 text-xs">Fragile</Badge>}
-                      {g.is_hazardous && <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30 text-xs">Hazardous</Badge>}
-                      {!g.is_fragile && !g.is_hazardous && <span className="text-xs text-muted-foreground">—</span>}
+              </TableHeader>
+              <TableBody>
+                {filtered.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="py-10 text-center text-sm text-slate-500">
+                      {goods.length === 0 ? "No goods have been added yet." : "No goods match the current search."}
                     </TableCell>
-                    <TableCell>{g.industry_category ?? "—"}</TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-    </div>
+                ) : (
+                  filtered.map((good) => (
+                    <TableRow key={good.good_id}>
+                      <TableCell className="font-mono text-xs">{good.good_id}</TableCell>
+                      <TableCell className="font-semibold text-slate-900">{good.name}</TableCell>
+                      <TableCell>{good.category}</TableCell>
+                      <TableCell>{good.weight_kg ?? 0} kg</TableCell>
+                      <TableCell>{good.volume_m3 ?? 0} m3</TableCell>
+                      <TableCell className="space-x-2">
+                        {good.is_fragile ? (
+                          <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-900">
+                            Fragile
+                          </Badge>
+                        ) : null}
+                        {good.is_hazardous ? (
+                          <Badge variant="outline" className="border-rose-200 bg-rose-50 text-rose-900">
+                            Hazardous
+                          </Badge>
+                        ) : null}
+                        {!good.is_fragile && !good.is_hazardous ? (
+                          <span className="text-sm text-slate-500">Standard</span>
+                        ) : null}
+                      </TableCell>
+                      <TableCell>
+                        {good.created_at
+                          ? new Date(good.created_at).toLocaleDateString()
+                          : "Unknown"}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </div>
+    </AppLayout>
   );
-  return <AppLayout>{content}</AppLayout>;
 };
 
 export default Goods;

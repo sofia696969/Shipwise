@@ -1,119 +1,139 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
-import { useAuth } from "@/contexts/AuthContext";
+import { LogIn, ShieldCheck, ShipWheel, Sparkles, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { toast } from "sonner";
+import { Card, CardContent } from "@/components/ui/card";
+import { ShipwiseLogo } from "@/components/ShipwiseLogo";
+import { useAuth } from "@/contexts/AuthContext";
+
+const backdropClass =
+  "relative min-h-screen overflow-hidden bg-[#030712] text-slate-100 before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(ellipse_100%_70%_at_50%_-10%,rgba(34,211,238,0.18),transparent_50%)] after:pointer-events-none after:absolute after:inset-0 after:bg-[linear-gradient(180deg,transparent_0%,rgba(3,7,18,0.92)_100%)]";
+
+const gridClass =
+  "pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(148,163,184,0.07)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.07)_1px,transparent_1px)] bg-[size:56px_56px] opacity-[0.35]";
 
 function AuthContent() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSignUp, setIsSignUp] = useState(false);
   const router = useRouter();
-  const { signIn, signUp } = useAuth();
+  const { user, appUser, loading, roleResolved, error, signInWithGoogle } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
+  useEffect(() => {
+    if (!loading && roleResolved && user) {
+      router.replace("/post-login");
+    }
+  }, [loading, roleResolved, router, user]);
 
+  const handleGoogleSignIn = async () => {
     try {
-      if (isSignUp) {
-        await signUp(email, password);
-        toast.success("Sign up successful! Please check your email.");
-      } else {
-        await signIn(email, password);
-        toast.success("Signed in successfully!");
-        router.push("/dashboard");
-      }
+      setIsLoading(true);
+      await signInWithGoogle();
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Authentication failed"
-      );
-    } finally {
+      console.error("Google sign-in failed:", error);
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-slate-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        {/* Logo and Branding */}
-        <div className="text-center mb-8">
-          <img
-            src="https://cdn.builder.io/api/v1/image/assets%2Faf93f640cf124b7cb35ce96c88c6f89b%2F14e209e3048e45ef8421386f80313e8f?format=webp&width=800&height=1200"
-            alt="Shipwise Logo"
-            className="h-20 mx-auto mb-4"
-          />
-          <h1 className="text-3xl font-bold text-slate-900">Shipwise</h1>
-          <p className="text-slate-600 text-sm mt-2">Ship Smart, Manage Wise</p>
-          <p className="text-slate-600 mt-4">Staff Administration Portal</p>
-        </div>
+    <div className={backdropClass}>
+      <div className={gridClass} aria-hidden />
+      <div className="pointer-events-none absolute -right-32 top-1/4 h-96 w-96 rounded-full bg-cyan-500/10 blur-[100px]" />
+      <div className="pointer-events-none absolute -left-24 bottom-0 h-80 w-80 rounded-full bg-indigo-600/15 blur-[90px]" />
 
-        {/* Auth Form */}
-        <div className="bg-white rounded-lg shadow-lg p-8">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <Label htmlFor="email" className="text-slate-700 font-medium">
-                Email
-              </Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="your@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="mt-2"
-              />
+      <div className="relative z-10 mx-auto flex min-h-screen max-w-7xl flex-col justify-center gap-12 px-6 py-14 lg:flex-row lg:items-center">
+        <section className="flex-1">
+          <div className="max-w-2xl">
+            <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-cyan-400/25 bg-cyan-500/10 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.35em] text-cyan-200/95">
+              <Sparkles className="h-3.5 w-3.5 text-cyan-300" />
+              Staff portal
             </div>
-
-            <div>
-              <Label htmlFor="password" className="text-slate-700 font-medium">
-                Password
-              </Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="mt-2"
-              />
-            </div>
-
-            <Button
-              type="submit"
-              disabled={isLoading}
-              className="w-full bg-primary hover:bg-blue-600 text-white font-medium py-2"
-            >
-              {isLoading
-                ? "Loading..."
-                : isSignUp
-                  ? "Create Account"
-                  : "Sign In"}
-            </Button>
-          </form>
-
-          <div className="mt-6 text-center">
-            <p className="text-slate-600 text-sm">
-              {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
-              <button
-                onClick={() => setIsSignUp(!isSignUp)}
-                className="text-primary font-semibold hover:underline"
-              >
-                {isSignUp ? "Sign In" : "Sign Up"}
-              </button>
+            <ShipwiseLogo className="mb-10 !items-start" showStaffBadge={false} />
+            <h1 className="max-w-xl text-4xl font-bold leading-tight tracking-tight text-white sm:text-5xl">
+              Operations control for modern logistics teams
+            </h1>
+            <p className="mt-5 max-w-xl text-base leading-relaxed text-slate-400 sm:text-lg">
+              Sign in to coordinate shipments, goods, carriers, and incidents in one secure
+              workspace—built for staff, not passengers.
             </p>
-          </div>
-        </div>
 
-        {/* Footer */}
-        <div className="text-center mt-8 text-slate-600 text-xs">
-          <p>© 2024 Shipwise. All rights reserved.</p>
-        </div>
+            <div className="mt-10 grid gap-4 sm:grid-cols-3">
+              {[
+                {
+                  icon: ShipWheel,
+                  title: "Shipment control",
+                  body: "ETAs, status, and exceptions in one lane.",
+                },
+                {
+                  icon: Users,
+                  title: "Team visibility",
+                  body: "Roles and org context without noise.",
+                },
+                {
+                  icon: ShieldCheck,
+                  title: "Incident readiness",
+                  body: "Audit-friendly signals when it matters.",
+                },
+              ].map(({ icon: Icon, title, body }) => (
+                <div
+                  key={title}
+                  className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-sm"
+                >
+                  <Icon className="mb-3 h-5 w-5 text-cyan-300" />
+                  <p className="text-sm font-semibold text-slate-100">{title}</p>
+                  <p className="mt-2 text-xs leading-relaxed text-slate-400">{body}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="w-full max-w-md">
+          <Card className="overflow-hidden rounded-2xl border border-cyan-500/20 bg-slate-900/75 shadow-[0_24px_80px_-24px_rgba(0,0,0,0.85),0_0_0_1px_rgba(34,211,238,0.12)] backdrop-blur-xl">
+            <CardContent className="space-y-6 p-8 sm:p-9">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-300/90">
+                  Secure access
+                </p>
+                <h2 className="mt-2 text-2xl font-bold tracking-tight text-white sm:text-3xl">
+                  Continue with Google
+                </h2>
+                <p className="mt-3 text-sm leading-relaxed text-slate-400">
+                  Use your company Google account. Your session stays on this device until you sign out.
+                </p>
+              </div>
+
+              <Button
+                type="button"
+                onClick={handleGoogleSignIn}
+                disabled={isLoading}
+                className="h-12 w-full rounded-xl border-0 bg-gradient-to-r from-cyan-400 to-sky-500 text-sm font-semibold text-slate-950 shadow-lg shadow-cyan-500/20 hover:from-cyan-300 hover:to-sky-400"
+              >
+                <LogIn className="mr-2 h-4 w-4" />
+                {isLoading ? "Redirecting to Google…" : "Sign in with Google"}
+              </Button>
+
+              <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 text-sm text-slate-300">
+                <p className="font-semibold text-slate-100">Access note</p>
+                <p className="mt-2 leading-relaxed text-slate-400">
+                  After sign-in, the app loads your organization from the <code className="text-cyan-200/90">users</code>{" "}
+                  table. If you are new, ask your HR owner to provision your account.
+                </p>
+              </div>
+
+              {user && !appUser && (
+                <div className="rounded-xl border border-amber-400/30 bg-amber-500/10 p-4 text-sm text-amber-100">
+                  Signed in, but no matching <code className="text-amber-200">users</code> row yet—ask HR to link your
+                  profile.
+                </div>
+              )}
+
+              {error && (
+                <div className="rounded-xl border border-rose-400/35 bg-rose-500/10 p-4 text-sm text-rose-100">
+                  {error}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </section>
       </div>
     </div>
   );
@@ -127,14 +147,7 @@ export default function Auth() {
   }, []);
 
   if (!mounted) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-slate-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-          <p className="mt-4 text-slate-600">Loading...</p>
-        </div>
-      </div>
-    );
+    return <div className="min-h-screen bg-[#030712]" />;
   }
 
   return <AuthContent />;

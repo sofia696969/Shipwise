@@ -1,5 +1,4 @@
 import * as React from "react";
-import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
 
 import { cn } from "@/lib/utils";
@@ -41,22 +40,28 @@ export interface ButtonProps
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, asChild = false, children, ...props }, ref) => {
-    // Cast Slot to ElementType to satisfy TS
-    const Comp = asChild ? (Slot as React.ElementType) : "button";
+    if (asChild) {
+      const child = React.Children.only(children) as React.ReactElement<{
+        className?: string;
+      }>;
 
-    // Ensure children are valid ReactNode (no bigint)
+      return React.cloneElement(child, {
+        className: cn(buttonVariants({ variant, size, className }), child.props.className),
+      });
+    }
+
     const safeChildren = React.Children.map(children, (child) =>
       typeof child === "bigint" ? child.toString() : child
     );
 
     return (
-      <Comp
+      <button
         className={cn(buttonVariants({ variant, size, className }))}
         ref={ref}
         {...props}
       >
         {safeChildren}
-      </Comp>
+      </button>
     );
   }
 );

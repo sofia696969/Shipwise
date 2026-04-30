@@ -7,9 +7,16 @@ import { createServer } from "./backend";
 export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
-    port: 8080,
+    // Match Supabase + Google OAuth redirect URIs (e.g. http://localhost:3000/auth/callback).
+    port: 3000,
+    strictPort: true,
     fs: {
-      allow: ["./frontend-web", "./shared"],
+      // Repo-root index.html is the Vite root; allow project root plus app dirs.
+      allow: [
+        path.resolve(__dirname),
+        path.resolve(__dirname, "frontend-web"),
+        path.resolve(__dirname, "shared"),
+      ],
       deny: [".env", ".env.*", "*.{crt,pem}", "**/.git/**", "backend/**"],
     },
   },

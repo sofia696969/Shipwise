@@ -1,1 +1,1 @@
-self.__REACT_LOADABLE_MANIFEST="{\"pages\\\\dashboard.tsx -> @/components/DashboardCharts\":{\"id\":\"pages\\\\dashboard.tsx -> @/components/DashboardCharts\",\"files\":[\"static/chunks/components_DashboardCharts_tsx.js\"]}}"
+self.__REACT_LOADABLE_MANIFEST="{}"

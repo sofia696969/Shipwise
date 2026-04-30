@@ -1,3 +1,5 @@
+import { useEffect } from "react";
+import { useRouter } from "next/router";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -5,8 +7,27 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { AppLayout } from "@/components/AppLayout";
+import { useAuth } from "@/contexts/AuthContext";
+import { usePagePermission } from "@/hooks/usePagePermission";
+import { PERMISSIONS } from "@/lib/rbac";
 
-const SettingsPage = () => (
+const SettingsPage = () => {
+  const router = useRouter();
+  const { user, appUser, loading, roleResolved } = useAuth();
+
+  const { allowed } = usePagePermission({
+    loading,
+    roleResolved,
+    isAuthenticated: Boolean(user),
+    user: appUser,
+    requiredPermission: PERMISSIONS.HR_PORTAL_ACCESS,
+  });
+
+  if (!user || !allowed) return null;
+
+  return (
+  <AppLayout>
   <div className="space-y-6 p-6">
     <div>
       <h1 className="text-2xl font-bold text-foreground">Settings</h1>
@@ -54,16 +75,16 @@ const SettingsPage = () => (
         <CardHeader><CardTitle className="text-base">Roles & Permissions</CardTitle></CardHeader>
         <CardContent className="space-y-3 text-sm">
           <div className="flex items-center justify-between rounded-md border border-border p-3">
-            <span className="font-medium text-foreground">Admin</span>
-            <span className="text-muted-foreground">Full access</span>
+            <span className="font-medium text-foreground">HR</span>
+            <span className="text-muted-foreground">User management + organization profile</span>
           </div>
           <div className="flex items-center justify-between rounded-md border border-border p-3">
-            <span className="font-medium text-foreground">Supervisor</span>
-            <span className="text-muted-foreground">Read + manage shipments</span>
+            <span className="font-medium text-foreground">Manager</span>
+            <span className="text-muted-foreground">Read-only operational visibility</span>
           </div>
           <div className="flex items-center justify-between rounded-md border border-border p-3">
             <span className="font-medium text-foreground">Staff</span>
-            <span className="text-muted-foreground">Read only</span>
+            <span className="text-muted-foreground">Operational read/write access</span>
           </div>
         </CardContent>
       </Card>
@@ -84,6 +105,8 @@ const SettingsPage = () => (
       </Card>
     </div>
   </div>
-);
+  </AppLayout>
+  );
+};
 
 export default SettingsPage;

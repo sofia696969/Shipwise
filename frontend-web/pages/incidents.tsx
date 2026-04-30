@@ -1,121 +1,113 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { AppLayout } from "@/components/AppLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { getIncidents } from "@/backend";
-import { AppLayout } from "@/components/AppLayout";
-import { StatusBadge } from "@/components/StatusBadge";
-import { Card, CardContent } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus } from "lucide-react";
+import { usePagePermission } from "@/hooks/usePagePermission";
+import { PERMISSIONS } from "@/lib/rbac";
 
-const severityStyles = {
-  low: "bg-primary/10 text-primary border-primary/30",
-  medium: "bg-chart-4/10 text-chart-4 border-chart-4/30",
-  high: "bg-destructive/10 text-destructive border-destructive/30",
+const severityStyles: Record<string, string> = {
+  low: "border-emerald-200 bg-emerald-50 text-emerald-800",
+  medium: "border-amber-200 bg-amber-50 text-amber-800",
+  high: "border-rose-200 bg-rose-50 text-rose-800",
 };
 
 const Incidents = () => {
-  const { user, loading } = useAuth();
+  const { user, appUser, loading, roleResolved } = useAuth();
   const router = useRouter();
   const [incidents, setIncidents] = useState<any[]>([]);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedType, setSelectedType] = useState("");
-  const [selectedSeverity, setSelectedSeverity] = useState("");
+
+  const { allowed } = usePagePermission({
+    loading,
+    roleResolved,
+    isAuthenticated: Boolean(user),
+    user: appUser,
+    requiredPermission: PERMISSIONS.OPERATIONS_PORTAL_ACCESS,
+  });
 
   useEffect(() => {
-    if (!loading && !user) {
-      router.replace("/auth");
+    if (!user || !allowed) {
+      return;
     }
-  }, [user, loading, router]);
 
-  useEffect(() => {
-    if (user) {
-      getIncidents().then(setIncidents).catch(console.error);
-    }
-  }, [user]);
+    getIncidents().then(setIncidents).catch(console.error);
+  }, [allowed, user]);
 
-  const content = (
-    <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Incidents & Compliance</h1>
-          <p className="text-sm text-muted-foreground">Track incidents and compliance issues</p>
-        </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild><Button><Plus className="mr-2 h-4 w-4" /> Report Incident</Button></DialogTrigger>
-          <DialogContent>
-            <DialogHeader><DialogTitle>Report New Incident</DialogTitle></DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div><Label>Shipment ID</Label><Input placeholder="SHP-XXX" /></div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Type</Label>
-                  <Select value={selectedType} onValueChange={setSelectedType}>
-                    <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
-                    <SelectContent>
-                      {["customs", "damage", "delay", "compliance"].map((t) => <SelectItem key={t} value={t} className="capitalize">{t}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Severity</Label>
-                  <Select value={selectedSeverity} onValueChange={setSelectedSeverity}>
-                    <SelectTrigger><SelectValue placeholder="Select severity" /></SelectTrigger>
-                    <SelectContent>
-                      {["low", "medium", "high"].map((s) => <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div><Label>Description</Label><Textarea placeholder="Describe the incident..." /></div>
-              <Button className="mt-2">Report Incident</Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      </div>
+  return (
+    <AppLayout>
+      <div className="space-y-6 p-5 lg:p-8">
+        <section className="rounded-[28px] border border-white/70 bg-white/75 p-6 shadow-lg shadow-slate-200/40 backdrop-blur-sm">
+          <h1 className="text-3xl font-black text-slate-950">Incidents</h1>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+            Review reported shipment issues so staff can respond quickly to delays,
+            damages, customs blockers, and operational exceptions.
+          </p>
+        </section>
 
-      <Card>
-        <CardContent className="pt-6">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>ID</TableHead>
-                <TableHead>Shipment</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Severity</TableHead>
-                <TableHead>Reported By</TableHead>
-                <TableHead>Reported At</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {incidents.map((i) => (
-                <TableRow key={i.id}>
-                  <TableCell className="font-mono text-xs">{i.id}</TableCell>
-                  <TableCell className="font-mono text-xs">{i.shipment_id}</TableCell>
-                  <TableCell><Badge variant="outline" className="capitalize text-xs">{i.incident_type}</Badge></TableCell>
-                  <TableCell className="max-w-[200px] truncate text-sm">{i.description}</TableCell>
-                  <TableCell><Badge variant="outline" className={`capitalize text-xs ${severityStyles[i.severity as keyof typeof severityStyles]}`}>{i.severity}</Badge></TableCell>
-                  <TableCell className="text-sm">{i.reported_by}</TableCell>
-                  <TableCell className="text-sm">{i.reported_at}</TableCell>
+        <Card className="border-white/70 bg-white/85 shadow-lg shadow-slate-200/40 backdrop-blur-sm">
+          <CardHeader>
+            <CardTitle className="text-base">Incident register</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Incident ID</TableHead>
+                  <TableHead>Shipment</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead>Severity</TableHead>
+                  <TableHead>Reported By</TableHead>
+                  <TableHead>Reported At</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-    </div>
+              </TableHeader>
+              <TableBody>
+                {incidents.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="py-10 text-center text-sm text-slate-500">
+                      No incidents found in Supabase yet.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  incidents.map((incident) => (
+                    <TableRow key={incident.incident_id}>
+                      <TableCell className="font-mono text-xs">{incident.incident_id}</TableCell>
+                      <TableCell className="font-mono text-xs">{incident.shipment_id}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="capitalize">
+                          {incident.incident_type}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="max-w-[340px] text-sm text-slate-700">
+                        {incident.description}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="outline"
+                          className={`capitalize ${severityStyles[incident.severity] ?? severityStyles.medium}`}
+                        >
+                          {incident.severity}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{incident.reported_by ?? "Unknown"}</TableCell>
+                      <TableCell>
+                        {incident.reported_at
+                          ? new Date(incident.reported_at).toLocaleString()
+                          : "Unknown"}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </div>
+    </AppLayout>
   );
-
-  return <AppLayout>{content}</AppLayout>;
 };
 
 export default Incidents;
-

@@ -13,31 +13,35 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus } from "lucide-react";
+import { usePagePermission } from "@/hooks/usePagePermission";
+import { PERMISSIONS } from "@/lib/rbac";
 
 const roleStyles = {
-  admin: "bg-primary/10 text-primary border-primary/30",
-  supervisor: "bg-chart-4/10 text-chart-4 border-chart-4/30",
+  hr: "bg-primary/10 text-primary border-primary/30",
+  manager: "bg-chart-4/10 text-chart-4 border-chart-4/30",
   staff: "bg-secondary/30 text-secondary-foreground border-border",
 };
 
 const UserManagement = () => {
-  const { user, loading } = useAuth();
+  const { user, appUser, loading, roleResolved } = useAuth();
   const router = useRouter();
   const [users, setUsers] = useState<any[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedRole, setSelectedRole] = useState("");
 
-  useEffect(() => {
-    if (!loading && !user) {
-      router.replace("/auth");
-    }
-  }, [user, loading, router]);
+  const { allowed } = usePagePermission({
+    loading,
+    roleResolved,
+    isAuthenticated: Boolean(user),
+    user: appUser,
+    requiredPermission: PERMISSIONS.USERS_MANAGE,
+  });
 
   useEffect(() => {
-    if (user) {
+    if (user && allowed) {
       getUsers().then(setUsers).catch(console.error);
     }
-  }, [user]);
+  }, [allowed, user]);
 
   const content = (
     <div className="space-y-6 p-6">
@@ -58,7 +62,7 @@ const UserManagement = () => {
                 <Select value={selectedRole} onValueChange={setSelectedRole}>
                   <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
                   <SelectContent>
-                    {["admin", "supervisor", "staff"].map((r) => <SelectItem key={r} value={r} className="capitalize">{r}</SelectItem>)}
+                    {["hr", "manager", "staff"].map((r) => <SelectItem key={r} value={r} className="capitalize">{r}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
