@@ -1,79 +1,91 @@
 # ShipWise
 
-ShipWise is a logistics and shipment management system designed to streamline operations for administrators, staff, and managers through a web and mobile platform.
+ShipWise is a **multi-tenant logistics management platform** that allows organizations to manage shipments, goods, carriers, and internal operations with secure role-based access control.
 
 ---
 
-## Overview
+##  Features
 
-ShipWise provides a centralized system to manage shipments, users, and operational workflows with role-based access control.
-
-The system consists of:
-
-- Web Application (Admin & Staff)
-- Mobile Application (Managers)
-- Backend powered by Supabase
-- PostgreSQL Database
-
----
-
-## Technology Stack
-
-### Backend
-- Supabase (Backend-as-a-Service)
-- Supabase Authentication
-- Supabase REST API
-
-### Database
-- PostgreSQL (Supabase)
-
-### Web Application
-- React.js
-- JavaScript
-- CSS
-- Supabase Client SDK
-
-### Mobile Application
-- React Native
-- Expo
-- Supabase Client SDK
+*  Authentication (Supabase + Google OAuth)
+*  Multi-tenant organization system
+*  Role-Based Access Control (RBAC)
+*  Shipments, goods, and carrier management
+*  Incident tracking system
+*  Organization onboarding (request → approval flow)
+*  Notification system (queued dispatch)
 
 ---
 
-## Features
+##  How It Works
 
-- Role-based authentication (Admin, Staff, Manager)
-- Shipment management
-- Task tracking
-- Secure login and authorization
-- Real-time database integration
-- Mobile access for managers
+1. **User Login**
+
+   * Users sign in using Google or email/password
+
+2. **Request Access**
+
+   * Users submit an organization request (company + industry)
+
+3. **Approval Flow**
+
+   * Superadmin reviews request
+   * If approved:
+
+     * Organization is created
+     * User becomes HR admin
+   * If rejected:
+
+     * Request is marked as rejected
 
 ---
 
-## Architecture
+##  Roles
 
-Frontend (React.js Web App, React Native Mobile App)  
-↓  
-Supabase Backend  
-↓  
-PostgreSQL Database  
+* **Superadmin** → full platform control
+* **HR** → manages organization data and users
+* **Manager / Staff** → operational access (shipments, goods, etc.)
 
 ---
 
-## Environment Variables
+##  Tech Stack
 
-The web frontend requires access to a Supabase project. Configure the following
-in a `.env.local` (or `.env`) file at the workspace root. The code checks both
-`NEXT_PUBLIC_` and `VITE_` prefixes for convenience:
+* Next.js
+* Supabase (Auth + PostgreSQL)
+* TypeScript
+* TailwindCSS
 
-```env
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiI...
+---
+
+##  Getting Started
+
+### 1. Install dependencies
+
+```bash
+npm install
 ```
 
-If these values are missing the app throws an error during initialization, and
-fallback sample data will be used for shipments/carriers so the UI renders with
-placeholder entries.
+### 2. Run locally
+
+```bash
+npm run dev
+```
+
+---
+
+##  Project Status
+
+* ✅ Authentication system completed
+* ✅ RBAC system implemented
+* ✅ Organization onboarding flow working
+* 🚧 Notification email integration in progress
+
+---
+
+##  Architecture
+
+* `/pages` → frontend routes + API routes
+* `/contexts` → auth & session handling
+* `/lib/rbac` → permissions system
+* Supabase → database + auth + RLS security
 
 
